@@ -1,0 +1,804 @@
+# Digit-deriv-bot
+For trading even digit with my strategy
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deriv Live Digit Even Bot</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef2f8;color:#20242b}
+.top{height:64px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-shadow:0 2px 8px #0002}
+.brand{font-size:19px;font-weight:800}.balance{background:#f3f5f9;padding:10px 15px;border-radius:12px;font-weight:700}
+.wrap{max-width:820px;margin:auto;padding:18px 14px 80px}
+h1{text-align:center;margin:0 0 7px;font-size:27px}.sub{text-align:center;margin-bottom:16px;color:#555}
+.card{background:#fff;border-radius:22px;border-top:7px solid #2869e6;box-shadow:0 5px 18px #0001;padding:18px;margin-bottom:16px}
+.title{font-size:20px;font-weight:800;margin-bottom:15px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+.field label{display:block;font-size:12px;font-weight:800;margin-bottom:6px}
+.field input,.field select{width:100%;padding:12px;border:0;border-radius:10px;background:#edf1f7;font-size:15px;font-weight:700}
+.token{width:100%;padding:13px;border:1px solid #ccd4e1;border-radius:10px;font-size:14px}
+button{border:0;border-radius:10px;padding:13px 18px;font-weight:800;cursor:pointer}
+.connect{background:#13a673;color:white}.disconnect{background:#d9282f;color:white}.run{background:#2869e6;color:#fff}.stop{background:#d9282f}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.account{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:13px}
+.stat{background:#f4f6fa;padding:11px;border-radius:10px;text-align:center}
+.stat span{display:block;font-size:11px;color:#687080}.stat strong{display:block;font-size:17px;margin-top:3px}
+.digits{display:flex;gap:7px;justify-content:center;margin:15px 0;flex-wrap:wrap}
+.digit{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:17px;font-weight:800}
+.odd{background:#d9282f}.even{background:#2869e6}
+.status{background:#edf1f7;border-radius:11px;padding:12px;text-align:center;margin:12px 0;font-weight:700}
+.log{height:190px;overflow:auto;background:#111827;color:#d7fbe9;border-radius:12px;padding:11px;font:12px monospace}
+.green{color:#39e58d}.red{color:#ff6970}.yellow{color:#ffd166}
+.note{font-size:12px;color:#687080;line-height:1.5;margin-top:12px}
+.session{font-size:13px;padding:9px;border-radius:9px;background:#e9f8f2;margin-top:9px;color:#17664c}
+.warning{background:#fff4d6;border-left:4px solid #f0ad00;padding:10px;border-radius:8px;font-size:12px;line-height:1.5;margin-bottom:12px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.account{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand">⚡ Deriv Live Digit Bot</div>
+  <div class="balance" id="topBalance">Not connected</div>
+</div>
+
+<main class="wrap">
+<h1>ODD → ARM EVEN → EXECUTE EVEN</h1>
+<div class="sub">Deriv WebSocket trading • DEMO ↔ REAL • 1-tick DIGITEVEN</div>
+
+<section class="card">
+  <div class="title">🔐 Connect Deriv Account</div>
+  <div class="warning">
+    Use a Deriv Personal Access Token with only the permissions this bot needs. Never send your token to another person.
+    This page keeps the token in memory only and does not save it to localStorage.
+  </div>
+  <div class="field">
+    <label>DERIV PERSONAL ACCESS TOKEN (PAT)</label>
+    <input id="token" class="token" type="password" autocomplete="off"
+           placeholder="Paste your Deriv PAT here">
+  </div>
+  <div class="field" style="margin-top:10px">
+    <label>DERIV APP ID</label>
+    <input id="appId" class="token" type="text" inputmode="numeric" autocomplete="off"
+           placeholder="Your current Deriv App ID">
+  </div>
+  <div class="actions">
+    <button class="connect" id="connectBtn">Connect & Authorize</button>
+    <button class="disconnect" id="disconnectBtn" style="display:none">Disconnect</button>
+  </div>
+  <div class="session" id="session">Session: not connected</div>
+
+  <div class="field" style="margin-top:10px">
+    <label>TRADING ACCOUNT</label>
+    <select id="accountSelect" disabled>
+      <option value="">Connect first</option>
+    </select>
+  </div>
+
+  <div class="account">
+    <div class="stat"><span>Account</span><strong id="loginid">—</strong></div>
+    <div class="stat"><span>Balance</span><strong id="accountBalance">—</strong></div>
+    <div class="stat"><span>Currency</span><strong id="currency">—</strong></div>
+    <div class="stat"><span>Account type</span><strong id="accountType">—</strong></div>
+    <div class="stat"><span>Open contracts</span><strong id="openContracts">0</strong></div>
+    <div class="stat"><span>Bot P/L</span><strong id="pnl">$0.00</strong></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="title">🎯 Live Strategy</div>
+  <div class="grid">
+    <div class="field"><label>MARKET</label>
+      <select id="symbol">
+        <option value="1HZ100V">Volatility 100 (1s) Index</option>
+        <option value="R_100">Volatility 100 Index</option>
+        <option value="1HZ50V">Volatility 50 (1s) Index</option>
+        <option value="R_50">Volatility 50 Index</option>
+        <option value="1HZ75V">Volatility 75 (1s) Index</option>
+        <option value="R_75">Volatility 75 Index</option>
+        <option value="1HZ25V">Volatility 25 (1s) Index</option>
+        <option value="R_25">Volatility 25 Index</option>
+        <option value="1HZ10V">Volatility 10 (1s) Index</option>
+        <option value="R_10">Volatility 10 Index</option>
+      </select>
+    </div>
+    <div class="field"><label>DURATION (TICKS)</label><input id="ticks" type="number" min="1" value="1"></div>
+    <div class="field"><label>STAKE</label><input id="stake" type="number" min="0.35" step="0.01" value="0.50"></div>
+    <div class="field"><label>MARTINGALE</label><input id="mg" type="number" min="1" step="0.1" value="1.2"></div>
+    <div class="field"><label>STOP LOSS</label><input id="sl" type="number" min="0" step="0.01" value="50"></div>
+    <div class="field"><label>TAKE PROFIT</label><input id="tp" type="number" min="0" step="0.01" value="5"></div>
+  </div>
+
+  <div class="digits" id="digits"></div>
+  <div class="status" id="status">Connect your Deriv token first.</div>
+
+  <div class="account">
+    <div class="stat"><span>Last digit</span><strong id="lastDigit">—</strong></div>
+    <div class="stat"><span>Armed</span><strong id="armed">NO</strong></div>
+    <div class="stat"><span>Trades</span><strong id="tradeCount">0</strong></div>
+  </div>
+
+  <div class="actions">
+    <button class="run" id="runBtn" disabled>▶ Start Trading</button>
+  </div>
+</section>
+
+<section class="card">
+  <div class="title">📡 Live Session Log</div>
+  <div class="log" id="log"></div>
+  <div class="note">
+    Strategy: an ODD last digit arms EVEN. The EVEN signal remains armed through further ODD digits.
+    When the next EVEN digit appears, the bot requests a fresh DIGITEVEN proposal and buys it.
+    A trade is only placed after the proposal is received. When Take Profit or Stop Loss is reached, the bot immediately locks trading and will not place another contract until you manually press Start Trading again. Switching DEMO/REAL closes the current authenticated session and opens a new one for the selected account.
+  </div>
+</section>
+</main>
+
+<script>
+"use strict";
+
+/*
+  DERIV LIVE DIGIT BOT
+  - Runtime token entry
+  - Current Deriv REST/PAT -> OTP -> WebSocket authentication
+  - Live balance subscription
+  - Live ticks
+  - ODD -> arm EVEN -> buy DIGITEVEN
+  - Contract result monitoring
+  - Take profit / stop loss
+  - Stake reset after win
+  - Optional martingale after loss
+
+  IMPORTANT:
+  This browser version uses a Personal Access Token (PAT) and the current
+  Deriv account -> OTP -> authenticated WebSocket flow. Use a scoped token
+  and never share it. The token is kept only in page memory.
+*/
+
+const API_BASE = "https://api.derivws.com";
+let APP_ID = "";
+let WS_URL = "";
+
+const $ = id => document.getElementById(id);
+let ws = null;
+let authorized = false;
+let running = false;
+let armedEven = false;
+let token = "";
+let reqId = 1;
+let pending = new Map();
+let history = [];
+let trades = 0;
+let botPnl = 0;
+let baseStake = 0.50;
+let currentStake = 0.50;
+let reconnectTimer = null;
+let pingTimer = null;
+let openContracts = new Set();
+let activeTrade = false;
+let accounts = [];
+let selectedAccount = null;
+let switchingAccount = false;
+
+function log(msg, cls="") {
+  const t = new Date().toLocaleTimeString();
+  $("log").insertAdjacentHTML("beforeend", `<div class="${cls}">[${t}] ${escapeHtml(msg)}</div>`);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function send(obj) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) throw new Error("WebSocket is not connected");
+  if (!obj.req_id) obj.req_id = reqId++;
+  ws.send(JSON.stringify(obj));
+  return obj.req_id;
+}
+function request(obj, timeout=10000) {
+  return new Promise((resolve,reject) => {
+    const id = send(obj);
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error("Request timeout"));
+    }, timeout);
+    pending.set(id, {
+      resolve: data => { clearTimeout(timer); pending.delete(id); resolve(data); },
+      reject: err => { clearTimeout(timer); pending.delete(id); reject(err); }
+    });
+  });
+}
+function renderDigits() {
+  $("digits").innerHTML = history.slice(-12).map(d =>
+    `<div class="digit ${d%2 ? "odd":"even"}">${d}</div>`
+  ).join("");
+  $("lastDigit").textContent = history.length ? history.at(-1) : "—";
+  $("armed").textContent = armedEven ? "YES" : "NO";
+}
+function setStatus(s) { $("status").textContent = s; }
+function updateBalance(bal, cur) {
+  $("accountBalance").textContent = `${Number(bal).toFixed(2)} ${cur || ""}`;
+  $("topBalance").textContent = `${Number(bal).toFixed(2)} ${cur || ""}`;
+}
+function stopForRisk(reason) {
+  // HARD RISK LOCK: once TP/SL is reached, no further trades may be started.
+  running = false;
+  armedEven = false;
+  activeTrade = false;
+  $("runBtn").textContent = "▶ Start Real Trading";
+  $("runBtn").className = "run";
+  setStatus(reason);
+  log(reason, "red");
+}
+function checkRisk() {
+  const sl = Number($("sl").value) || 0;
+  const tp = Number($("tp").value) || 0;
+  if (sl > 0 && botPnl <= -sl) {
+    stopForRisk(`STOP LOSS reached: ${botPnl.toFixed(2)}`);
+    return;
+  }
+  if (tp > 0 && botPnl >= tp) {
+    stopForRisk(`TAKE PROFIT reached: +${botPnl.toFixed(2)}`);
+    return;
+  }
+}
+
+async function connect() {
+  token = $("token").value.trim();
+  APP_ID = $("appId").value.trim();
+
+  if (!token) { alert("Paste your Deriv Personal Access Token first."); return; }
+  if (!APP_ID) { alert("Enter your current Deriv App ID first."); return; }
+
+  if (ws) try { ws.close(); } catch(e) {}
+  authorized = false;
+  running = false;
+  activeTrade = false;
+  switchingAccount = false;
+
+  $("connectBtn").disabled = true;
+  $("session").textContent = "Session: authenticating…";
+  $("accountSelect").disabled = true;
+  $("accountSelect").innerHTML = '<option value="">Loading accounts…</option>';
+  $("runBtn").disabled = true;
+  log("Getting your Deriv Options accounts…", "yellow");
+
+  try {
+    const accountsResponse = await fetch(`${API_BASE}/trading/v1/options/accounts`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Deriv-App-ID": APP_ID,
+        "Accept": "application/json"
+      }
+    });
+
+    const accountsData = await accountsResponse.json().catch(() => ({}));
+
+    if (!accountsResponse.ok) {
+      const msg = accountsData?.errors?.[0]?.message
+        || accountsData?.error?.message
+        || `HTTP ${accountsResponse.status}`;
+      throw new Error(`Account lookup failed: ${msg}`);
+    }
+
+    accounts = accountsData?.data || [];
+    if (!Array.isArray(accounts)) accounts = [accountsData.data];
+
+    accounts = accounts.filter(a => a && a.account_id);
+    if (!accounts.length) {
+      throw new Error("No Options trading accounts were returned for this token.");
+    }
+
+    populateAccounts();
+
+    // Prefer REAL when available to preserve the original bot's behavior.
+    // The user can immediately switch to DEMO from the selector.
+    selectedAccount =
+      accounts.find(a => a.status === "active" && a.account_type === "real") ||
+      accounts.find(a => a.status === "active" && a.account_type === "demo") ||
+      accounts.find(a => a.status === "active") ||
+      accounts[0];
+
+    $("accountSelect").value = selectedAccount.account_id;
+    await connectSelectedAccount();
+
+  } catch (e) {
+    authorized = false;
+    $("connectBtn").disabled = false;
+    $("runBtn").disabled = true;
+    $("accountSelect").disabled = true;
+    $("accountSelect").innerHTML = '<option value="">Connection failed</option>';
+    $("session").textContent = "Session: connection failed";
+    log(e.message || "Unknown connection error", "red");
+    log("Check that the PAT is valid, has the required trading permission, and that the App ID belongs to the same Deriv app.", "yellow");
+    log("Your token was not stored by this page.", "yellow");
+  }
+}
+
+function populateAccounts() {
+  const select = $("accountSelect");
+  select.innerHTML = "";
+
+  const ordered = [...accounts].sort((a, b) => {
+    const ar = a.account_type === "real" ? 0 : 1;
+    const br = b.account_type === "real" ? 0 : 1;
+    return ar - br;
+  });
+
+  ordered.forEach(a => {
+    const option = document.createElement("option");
+    option.value = a.account_id;
+    const mode = a.account_type === "real" ? "REAL" : "DEMO";
+    const bal = a.balance != null ? ` • ${a.balance} ${a.currency || ""}` : "";
+    option.textContent = `${mode} • ${a.account_id}${bal}`;
+    select.appendChild(option);
+  });
+
+  select.disabled = false;
+}
+
+async function connectSelectedAccount() {
+  if (!token || !APP_ID || !selectedAccount?.account_id) {
+    throw new Error("No account has been selected.");
+  }
+
+  authorized = false;
+  running = false;
+  activeTrade = false;
+  armedEven = false;
+
+  if (ws) {
+    try { ws.close(); } catch(e) {}
+    ws = null;
+  }
+
+  clearInterval(pingTimer);
+  $("runBtn").disabled = true;
+  $("runBtn").textContent = "▶ Start Trading";
+  $("runBtn").className = "run";
+
+  const accountId = selectedAccount.account_id;
+  const accountType = selectedAccount.account_type === "real" ? "REAL" : "DEMO";
+
+  $("session").textContent = `Session: authorizing ${accountType} • ${accountId}…`;
+  setStatus(`Connecting to ${accountType} account…`);
+  log(`Requesting fresh WebSocket session for ${accountType} account ${accountId}…`, "yellow");
+
+  const otpResponse = await fetch(
+    `${API_BASE}/trading/v1/options/accounts/${encodeURIComponent(accountId)}/otp`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Deriv-App-ID": APP_ID,
+        "Accept": "application/json"
+      }
+    }
+  );
+
+  const otpData = await otpResponse.json().catch(() => ({}));
+
+  if (!otpResponse.ok) {
+    const msg = otpData?.errors?.[0]?.message
+      || otpData?.error?.message
+      || `HTTP ${otpResponse.status}`;
+    throw new Error(`WebSocket authentication failed: ${msg}`);
+  }
+
+  WS_URL = otpData?.data?.url;
+  if (!WS_URL) throw new Error("Deriv did not return an authenticated WebSocket URL.");
+
+  log(`Authenticated ${accountType} WebSocket URL received. Connecting immediately…`, "yellow");
+
+  await new Promise((resolve, reject) => {
+    let settled = false;
+
+    ws = new WebSocket(WS_URL);
+
+    const fail = (message) => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(message));
+    };
+
+    ws.onopen = () => {
+      if (settled) return;
+      settled = true;
+
+      log(`${accountType} WebSocket connected and authenticated.`, "green");
+      authorized = true;
+      selectedAccount = accounts.find(a => a.account_id === accountId) || selectedAccount;
+
+      $("loginid").textContent = accountId;
+      $("currency").textContent = selectedAccount.currency || "—";
+      $("accountType").textContent = accountType;
+      $("session").textContent = `Session: AUTHORIZED • ${accountId} • ${accountType}`;
+      $("disconnectBtn").style.display = "inline-block";
+      $("connectBtn").disabled = false;
+      $("accountSelect").disabled = false;
+      $("runBtn").disabled = false;
+      updateRunButton();
+
+      send({balance:1, subscribe:1, req_id:reqId++});
+      send({portfolio:1, req_id:reqId++});
+      send({ticks:$("symbol").value, subscribe:1, req_id:reqId++});
+
+      clearInterval(pingTimer);
+      pingTimer = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          try { ws.send(JSON.stringify({ping:1, req_id:reqId++})); } catch(e) {}
+        }
+      }, 30000);
+
+      log(`Live ticks subscribed: ${$("symbol").value}`, "green");
+      setStatus(`Connected to ${accountType}. Press Start Trading when ready.`);
+      resolve();
+    };
+
+    ws.onmessage = event => {
+      let data;
+      try { data = JSON.parse(event.data); } catch(e) { return; }
+
+      if (data.req_id && pending.has(data.req_id)) {
+        if (data.error) pending.get(data.req_id).reject(new Error(data.error.message));
+        else pending.get(data.req_id).resolve(data);
+      }
+
+      if (data.error) {
+        log(`API error: ${data.error.code || ""} ${data.error.message || ""}`, "red");
+        if (!authorized) fail(`WebSocket/API error: ${data.error.message || "Authentication failed"}`);
+        return;
+      }
+
+      if (data.msg_type === "balance" && data.balance) {
+        updateBalance(data.balance.balance, data.balance.currency);
+      }
+
+      if (data.msg_type === "portfolio" && data.portfolio) {
+        const list = data.portfolio.contracts || [];
+        openContracts = new Set(list.map(x => String(x.contract_id)));
+        $("openContracts").textContent = list.length;
+      }
+
+      if (data.msg_type === "tick" && data.tick) handleTick(data.tick);
+      if (data.msg_type === "buy" && data.buy) handleBuy(data.buy);
+      if (data.msg_type === "proposal_open_contract" && data.proposal_open_contract) {
+        handleContract(data.proposal_open_contract);
+      }
+    };
+
+    ws.onerror = () => {
+      log("WebSocket transport error. Check your internet connection and Deriv account permissions.", "red");
+      if (!authorized) fail("WebSocket transport error while connecting.");
+    };
+
+    ws.onclose = event => {
+      const wasAuthorized = authorized;
+      authorized = false;
+      activeTrade = false;
+      $("session").textContent = "Session: disconnected";
+      $("runBtn").disabled = true;
+      clearInterval(pingTimer);
+
+      if (!wasAuthorized && !settled) {
+        fail(`WebSocket closed before authentication${event?.code ? ` (code ${event.code})` : ""}.`);
+      }
+
+      log(`WebSocket disconnected${event?.code ? ` (code ${event.code})` : ""}.`, "red");
+    };
+  });
+}
+
+function updateRunButton() {
+  const mode = $("accountType").textContent === "REAL" ? "REAL" : "DEMO";
+  $("runBtn").textContent = running ? `■ Stop ${mode} Trading` : `▶ Start ${mode} Trading`;
+  $("runBtn").className = running ? "stop" : "run";
+}
+
+function disconnect() {
+  running = false;
+  authorized = false;
+  activeTrade = false;
+  armedEven = false;
+
+  if (ws) { try { ws.close(); } catch(e) {} }
+  ws = null;
+  clearInterval(pingTimer);
+
+  $("connectBtn").disabled = false;
+  $("disconnectBtn").style.display = "none";
+  $("accountSelect").disabled = true;
+  $("accountSelect").innerHTML = '<option value="">Connect first</option>';
+  $("runBtn").disabled = true;
+  $("runBtn").textContent = "▶ Start Trading";
+  $("runBtn").className = "run";
+  $("session").textContent = "Session: disconnected";
+  $("topBalance").textContent = "Not connected";
+  $("accountBalance").textContent = "—";
+  $("loginid").textContent = "—";
+  $("currency").textContent = "—";
+  $("accountType").textContent = "—";
+  renderDigits();
+
+  log("Disconnected. Token removed from active memory.", "yellow");
+  token = "";
+  WS_URL = "";
+  accounts = [];
+  selectedAccount = null;
+  $("token").value = "";
+}
+
+function handleTick(tick) {
+  const quote = Number(tick.quote);
+  if (!Number.isFinite(quote)) return;
+
+  const s = String(tick.quote);
+  const digitsOnly = s.replace(/\D/g, "");
+  const d = Number(digitsOnly.at(-1));
+  if (!Number.isInteger(d)) return;
+
+  history.push(d);
+  if (history.length > 50) history.shift();
+  renderDigits();
+
+  // HARD RISK LOCK: never process a new trading signal after TP/SL has stopped the bot.
+  if (!running || !authorized) return;
+
+  // Re-check limits before evaluating any new tick.
+  const tpNow = Number($("tp").value) || 0;
+  const slNow = Number($("sl").value) || 0;
+  if ((tpNow > 0 && botPnl >= tpNow) || (slNow > 0 && botPnl <= -slNow)) {
+    checkRisk();
+    return;
+  }
+
+  // EXACT STRATEGY FROM THE PROVIDED BOT:
+  // ODD arms EVEN. Repeated ODD keeps it armed.
+  // The next EVEN triggers a real DIGITEVEN purchase.
+  if (d % 2 === 1) {
+    armedEven = true;
+    setStatus(`ODD ${d} detected → EVEN trade ARMED. Waiting for next EVEN digit…`);
+    log(`ODD ${d} → EVEN remains ARMED`, "green");
+    renderDigits();
+    return;
+  }
+
+  if (armedEven && !activeTrade) {
+    armedEven = false;
+    setStatus(`EVEN ${d} arrived → requesting live DIGITEVEN proposal…`);
+    log(`EVEN ${d} → requesting real DIGITEVEN contract`, "yellow");
+    renderDigits();
+    executeEven();
+  } else {
+    setStatus(`EVEN ${d} detected — waiting for an ODD digit to arm EVEN…`);
+  }
+}
+
+function normalizeStake(value) {
+  // Deriv accepts a maximum of 2 decimal places for the stake.
+  // Round first so martingale calculations can never send values such as 0.864.
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0.50;
+  return Math.max(0.35, Math.round((n + Number.EPSILON) * 100) / 100);
+}
+
+async function executeEven() {
+  if (!running || !authorized || activeTrade) return;
+
+  // Final hard safety check immediately before requesting a new contract.
+  const tpNow = Number($("tp").value) || 0;
+  const slNow = Number($("sl").value) || 0;
+  if (tpNow > 0 && botPnl >= tpNow) {
+    stopForRisk(`TAKE PROFIT reached: +${botPnl.toFixed(2)}`);
+    return;
+  }
+  if (slNow > 0 && botPnl <= -slNow) {
+    stopForRisk(`STOP LOSS reached: ${botPnl.toFixed(2)}`);
+    return;
+  }
+
+  activeTrade = true;
+
+  const symbol = $("symbol").value;
+  const ticks = Math.max(1, Number($("ticks").value) || 1);
+  const stake = normalizeStake(currentStake);
+  currentStake = stake;
+  const currency = $("currency").textContent;
+
+  try {
+    const p = await request({
+      proposal:1,
+      amount:stake,
+      basis:"stake",
+      contract_type:"DIGITEVEN",
+      currency:currency,
+      duration:ticks,
+      duration_unit:"t",
+      underlying_symbol:symbol
+    });
+
+    if (!p.proposal || !p.proposal.id) throw new Error("No valid proposal returned.");
+
+    const proposalId = p.proposal.id;
+    const ask = Number(p.proposal.ask_price);
+    if (!Number.isFinite(ask)) throw new Error("Invalid proposal price.");
+
+    log(`Proposal received: stake ${stake.toFixed(2)} ${currency}, payout ${p.proposal.payout ?? "?"}`, "green");
+
+    // Buy only the fresh proposal. The price caps the maximum amount paid.
+    send({
+      buy: proposalId,
+      price: ask,
+      req_id:reqId++
+    });
+  } catch(e) {
+    activeTrade = false;
+    log("Trade proposal failed: " + e.message, "red");
+    setStatus("Proposal failed — waiting for the next signal.");
+  }
+}
+
+function handleBuy(buy) {
+  const id = buy.contract_id;
+  if (!id) {
+    activeTrade = false;
+    log("Buy response did not contain a contract ID.", "red");
+    return;
+  }
+
+  trades++;
+  $("tradeCount").textContent = trades;
+  openContracts.add(String(id));
+  $("openContracts").textContent = openContracts.size;
+
+  log(`REAL TRADE BOUGHT: DIGITEVEN • Contract ${id} • Cost ${buy.buy_price}`, "green");
+  setStatus(`Live contract ${id} running…`);
+
+  send({
+    proposal_open_contract:1,
+    contract_id:id,
+    subscribe:1,
+    req_id:reqId++
+  });
+}
+
+function handleContract(c) {
+  const id = String(c.contract_id);
+  const profit = Number(c.profit);
+
+  if (Number.isFinite(profit)) {
+    setStatus(`Contract ${id}: current P/L ${profit.toFixed(2)}`);
+  }
+
+  if (c.is_sold || c.is_expired) {
+    activeTrade = false;
+    openContracts.delete(id);
+    $("openContracts").textContent = openContracts.size;
+
+    const finalProfit = Number(c.profit) || 0;
+    botPnl += finalProfit;
+    $("pnl").textContent = `${botPnl >= 0 ? "+" : ""}${botPnl.toFixed(2)}`;
+
+    if (finalProfit > 0) {
+      // Lock immediately if this win reaches/exceeds Take Profit.
+      const tpTarget = Number($("tp").value) || 0;
+      if (tpTarget > 0 && botPnl >= tpTarget) {
+        currentStake = baseStake;
+        stopForRisk(`TAKE PROFIT REACHED: +${botPnl.toFixed(2)} — trading locked.`);
+        log(`TP LOCK: final win +${finalProfit.toFixed(2)} brought bot P/L to +${botPnl.toFixed(2)}. No more trades will be placed.`, "green");
+      } else {
+        currentStake = baseStake;
+        log(`CONTRACT WON: +${finalProfit.toFixed(2)} • stake reset to ${currentStake.toFixed(2)}`, "green");
+        setStatus(`WIN +${finalProfit.toFixed(2)} — waiting for next ODD signal.`);
+      }
+    } else if (finalProfit < 0) {
+      const mg = Math.max(1, Number($("mg").value) || 1);
+      currentStake = normalizeStake(currentStake * mg);
+      log(`CONTRACT LOST: ${finalProfit.toFixed(2)} • next stake ${currentStake.toFixed(2)}`, "red");
+      setStatus(`LOSS ${finalProfit.toFixed(2)} — waiting for next ODD signal.`);
+    } else {
+      log(`CONTRACT settled at ${finalProfit.toFixed(2)}`, "yellow");
+    }
+
+    // End the contract subscription when the contract is settled.
+    if (c.subscription && c.subscription.id) {
+      try { send({forget:c.subscription.id}); } catch(e) {}
+    }
+
+    checkRisk();
+  }
+}
+
+$("connectBtn").onclick = connect;
+$("disconnectBtn").onclick = disconnect;
+
+$("accountSelect").onchange = async () => {
+  if (!authorized || switchingAccount) return;
+
+  const id = $("accountSelect").value;
+  const next = accounts.find(a => a.account_id === id);
+  if (!next || !next.account_id) return;
+
+  const previousMode = $("accountType").textContent;
+  const nextMode = next.account_type === "real" ? "REAL" : "DEMO";
+
+  if (next.account_id === selectedAccount?.account_id) return;
+
+  const confirmed = confirm(
+    `Switch from ${previousMode} to ${nextMode} account ${next.account_id}?\n\n` +
+    `The current WebSocket session will be closed and a new authenticated session will be opened.`
+  );
+  if (!confirmed) {
+    $("accountSelect").value = selectedAccount?.account_id || "";
+    return;
+  }
+
+  switchingAccount = true;
+  running = false;
+  activeTrade = false;
+  armedEven = false;
+
+  try {
+    selectedAccount = next;
+    $("accountSelect").disabled = true;
+    $("session").textContent = `Session: switching to ${nextMode}…`;
+    setStatus(`Switching to ${nextMode} account…`);
+    log(`Switching account to ${nextMode} • ${next.account_id}`, "yellow");
+
+    await connectSelectedAccount();
+    log(`Account switch complete: ${nextMode} • ${next.account_id}`, "green");
+  } catch (e) {
+    log(`Account switch failed: ${e.message}`, "red");
+    $("session").textContent = "Session: connection failed";
+    $("runBtn").disabled = true;
+    authorized = false;
+  } finally {
+    switchingAccount = false;
+    if (authorized) $("accountSelect").disabled = false;
+  }
+};
+
+$("runBtn").onclick = () => {
+  if (!authorized) { alert("Connect your Deriv account first."); return; }
+
+  running = !running;
+  const mode = $("accountType").textContent === "REAL" ? "REAL" : "DEMO";
+
+  if (running) {
+    baseStake = normalizeStake($("stake").value);
+    currentStake = baseStake;
+    botPnl = 0;
+    $("pnl").textContent = "$0.00";
+    updateRunButton();
+    setStatus(`${mode} TRADING ACTIVE — waiting for ODD to arm EVEN.`);
+    log(`${mode} TRADING STARTED. Strategy: ODD → arm EVEN → next EVEN buys DIGITEVEN.`, "yellow");
+  } else {
+    updateRunButton();
+    setStatus(`${mode} trading stopped.`);
+    log(`${mode} TRADING STOPPED.`, "yellow");
+  }
+};
+
+$("symbol").onchange = () => {
+  if (!authorized || !ws || ws.readyState !== WebSocket.OPEN) return;
+  try {
+    send({forget_all:"ticks"});
+    send({ticks:$("symbol").value, subscribe:1});
+    history = [];
+    armedEven = false;
+    renderDigits();
+    log(`Switched live market to ${$("symbol").value}`, "yellow");
+  } catch(e) {}
+};
+
+window.addEventListener("beforeunload", () => {
+  try { if (ws) ws.close(); } catch(e) {}
+});
+
+renderDigits();
+log("Ready. Paste a Deriv token and press Connect & Authorize.", "yellow");
+log("No token is stored by this page.", "yellow");
+</script>
+</body>
+</html>
